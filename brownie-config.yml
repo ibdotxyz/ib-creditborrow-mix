@@ -1,0 +1,36 @@
+# use Ganache's forked mainnet mode as the default network
+# NOTE: You don't *have* to do this, but it is often helpful for testing
+networks:
+  default: mainnet-fork
+
+# automatically fetch contract sources from Etherscan
+autofetch_sources: True
+
+# require OpenZepplin Contracts
+dependencies:
+  - OpenZeppelin/openzeppelin-contracts@4.5.0
+
+# path remapping to support imports from GitHub/NPM
+compiler:
+  solc:
+    remappings:
+      - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.5.0"
+
+networks:
+  default: mainnet-fork
+  mainnet-fork:
+    comptroller: "0xAB1c342C7bf5Ec5F02ADEA1c2270670bCa144CbB"
+    i_usdc: "0x76Eb2FE28b36B3ee97F3Adae0C69606eeDB2A37c"
+  mainnet:
+    comptroller: "0xAB1c342C7bf5Ec5F02ADEA1c2270670bCa144CbB"
+    i_usdc: "0x76Eb2FE28b36B3ee97F3Adae0C69606eeDB2A37c"
+  op-main-fork:
+    comptroller: "0xE0B57FEEd45e7D908f2d0DaCd26F113Cf26715BF"
+    i_usdc: "0x1d073cf59Ae0C169cbc58B6fdD518822ae89173a"
+  op-main:
+    comptroller: "0xE0B57FEEd45e7D908f2d0DaCd26F113Cf26715BF"
+    i_usdc: "0x1d073cf59Ae0C169cbc58B6fdD518822ae89173a"
+
+reports:
+  exclude_contracts:
+    - SafeMath
