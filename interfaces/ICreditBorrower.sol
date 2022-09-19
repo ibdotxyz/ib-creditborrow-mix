@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-
 interface ICreditBorrower {
-
     function askForRepay(uint256 amount) external;
 
     // total balance manage by borrower

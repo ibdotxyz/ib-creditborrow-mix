@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.8;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,38 +13,56 @@ import "../../interfaces/ICreditBorrower.sol";
 import "../../interfaces/IComptroller.sol";
 import "../../interfaces/ICToken.sol";
 
-
-contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
+contract CreditOfficer is Ownable, Pausable, ReentrancyGuard, ICreditOfficer {
     using SafeERC20 for IERC20;
 
-    address public admin;
-    address public guardian;
-    IComptroller public comptroller;
-    ICToken public ctoken;
-    IERC20 public underlyingToken;
+    IComptroller public immutable comptroller;
+    ICToken public immutable ctoken;
+    IERC20 public immutable underlyingToken;
 
+    address public guardian;
     ICreditBorrower public borrower;
+
+    event BorrowerSet(address borrower);
+    event GuardianSet(address guardian);
+    event RepayRequested(uint256 amount);
+    event Seize(address token, uint256 amount);
 
     constructor(
         address _admin,
         address _comptroller,
         address _ctoken
     ) {
-        admin = _admin;
         comptroller = IComptroller(_comptroller);
         ctoken = ICToken(_ctoken);
         underlyingToken = IERC20(ICToken(_ctoken).underlying());
         underlyingToken.approve(_ctoken, type(uint256).max);
+
+        transferOwnership(_admin);
+    }
+
+    modifier onlyBorrower() {
+        require(msg.sender == address(borrower), "!borrower");
+        _;
     }
 
     /**
      * @notice Borrow from Iron Bank.
      * @param amount The amount of token to borrow.
      */
-    function borrow(uint256 amount) external onlyBorrower nonReentrant whenNotPaused {
+    function borrow(uint256 amount)
+        external
+        onlyBorrower
+        nonReentrant
+        whenNotPaused
+    {
         ctoken.borrow(amount);
         underlyingToken.transfer(address(borrower), amount);
-        require(borrower.totalBalance() >= ctoken.borrowBalanceStored(address(this)), "shortfall");
+        require(
+            borrower.totalBalance() >=
+                ctoken.borrowBalanceStored(address(this)),
+            "shortfall"
+        );
     }
 
     /**
@@ -57,7 +76,11 @@ contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
         } else {
             repayAmount = amount;
         }
-        underlyingToken.transferFrom(address(borrower), address(this), repayAmount);
+        underlyingToken.transferFrom(
+            address(borrower),
+            address(this),
+            repayAmount
+        );
         ctoken.repayBorrow(amount);
     }
 
@@ -66,57 +89,62 @@ contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
     /**
      * @notice Set the borrower.
      */
-    function setBorrower(address _borrower) external onlyAdmin {
+    function setBorrower(address _borrower) external onlyOwner {
+        if (address(borrower) != address(0)) {
+            require(borrowBalanceCurrent() == 0, "nonzero borrow balance");
+        }
         borrower = ICreditBorrower(_borrower);
+        emit BorrowerSet(_borrower);
+    }
+
+    /**
+     * @notice Set the guardian.
+     */
+    function setGuardian(address _guardian) external onlyOwner {
+        guardian = _guardian;
+        emit GuardianSet(_guardian);
     }
 
     /**
      * @notice Pause borrowing.
      */
     function pause() external {
-        require(msg.sender == admin || msg.sender == guardian, "not authorized");
+        require(
+            msg.sender == owner() || msg.sender == guardian,
+            "not authorized"
+        );
         _pause();
     }
 
     /**
      * @notice Unpause borrowing.
      */
-    function unpause() external onlyAdmin {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
     /**
      * @notice Ask for Repay.
      */
-    function askForRepay(uint256 amount) external onlyAdmin {
+    function askForRepay(uint256 amount) external onlyOwner {
         borrower.askForRepay(amount);
+        emit RepayRequested(amount);
     }
 
-
-    /* ========== MODIFIERS ========== */
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin);
-        _;
+    /**
+     * @notice Seize.
+     */
+    function seize(address token) external onlyOwner {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        IERC20(token).transfer(owner(), bal);
+        emit Seize(token, bal);
     }
-
-    modifier onlyBorrower() {
-        require(msg.sender == address(borrower));
-        _;
-    }
-
-
-    /* ========== EVENTS ========== */
-
-    // TODO
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function token() external view returns (address) {
+    function borrowToken() external view returns (address) {
         return address(underlyingToken);
     }
-
-    // TODO: move to lens
 
     // borrower status functions
     function borrowerTotalAsset() external returns (uint256) {
@@ -129,7 +157,11 @@ contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
 
     // core view functions
     function totalCredit() public view returns (uint256) {
-        return IComptroller(comptroller).creditLimits(address(this), address(ctoken));
+        return
+            IComptroller(comptroller).creditLimits(
+                address(this),
+                address(ctoken)
+            );
     }
 
     function borrowBalanceStored() public view returns (uint256) {
@@ -140,10 +172,17 @@ contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
         return ICToken(ctoken).borrowBalanceCurrent(address(this));
     }
 
-    function previewBorrowRatePerBlock(uint256 _amount, bool _repay) external view returns (uint256) {
-        return ICToken(ctoken).estimateBorrowRatePerBlockAfterChange(_amount, _repay);
+    function previewBorrowRatePerBlock(uint256 _amount, bool _repay)
+        external
+        view
+        returns (uint256)
+    {
+        return
+            ICToken(ctoken).estimateBorrowRatePerBlockAfterChange(
+                _amount,
+                _repay
+            );
     }
-
 
     // useful functions
     function creditStatusStored() public view returns (uint256, uint256) {
@@ -174,7 +213,11 @@ contract CreditOfficer is ICreditOfficer, Pausable, ReentrancyGuard {
         return shortfall;
     }
 
-    function _creditStatus(uint256 creditAmount, uint256 borrowAmount) internal pure returns (uint256, uint256) {
+    function _creditStatus(uint256 creditAmount, uint256 borrowAmount)
+        internal
+        pure
+        returns (uint256, uint256)
+    {
         uint256 creditLeft = 0;
         uint256 shortfall = 0;
         if (creditAmount >= borrowAmount) {

@@ -13,7 +13,8 @@ export WEB3_INFURA_PROJECT_ID=YourProjectID
 ```
 
 - Optional Use `network-config.yaml` provided in the repo.
-NOTE: This will replace your network config globally
+  NOTE: This will replace your network config globally
+
 ```bash
 cp network-config.yaml ~/.brownie/
 ```
@@ -47,7 +48,8 @@ $ brownie run scripts/setup_playground.py --network mainnet-fork --interactive
 1. Deploy the [`CreditBorrower.sol`](contracts/CreditBorrower.sol) contract.
 
 ```python
->>> credit_borrower = CreditBorrower.deploy(accounts[0], credit_officer, {"from": accounts[0]})
+>>> token = credit_officer.borrowToken()
+>>> credit_borrower = CreditBorrower.deploy(accounts[0], token, credit_officer, {"from": accounts[0]})
 Transaction sent: 0xb173db83eeee9b35abe557f963543e0579bd3e79f710ece407e763428a0aeea1
   Gas price: 0.0 gwei   Gas limit: 12000000   Nonce: 6
   CreditBorrower.constructor confirmed   Block: 15547377   Gas used: 395321 (3.29%)
@@ -97,6 +99,7 @@ See the Iron Bank documentation on [Credit Limit Assessment](https://docs.ib.xyz
 ## Testing
 
 To run the tests:
+
 ```
 brownie test
 ```
