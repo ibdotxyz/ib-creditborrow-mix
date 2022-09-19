@@ -24,7 +24,7 @@ def main():
         ib_admin, comptroller, i_dai, {"from": ib_admin}
     )
 
-    # grant 1M USDC credit to the officer
+    # grant 1M DAI credit to the officer
     comptroller._setCreditLimit(
         credit_officer, i_dai, 1_000_000 * 1e18, {"from": ib_admin}
     )

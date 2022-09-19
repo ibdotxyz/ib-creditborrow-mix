@@ -49,11 +49,11 @@ contract CreditBorrower is Ownable, ICreditBorrower {
     }
 
     function totalBalance() external view returns (uint256) {
-        return IERC20(token).balanceOf(address(this)) + balanceInWork();
+        return token.balanceOf(address(this)) + balanceInWork();
     }
 
     function freeBalance() external view returns (uint256) {
-        return IERC20(token).balanceOf(address(this));
+        return token.balanceOf(address(this));
     }
 
     function borrow(uint256 amount) external onlyOwner {
