@@ -1,34 +1,38 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../interfaces/ICreditOfficer.sol";
 import "../interfaces/ICreditBorrower.sol";
 
-contract CreditBorrower is ICreditBorrower {
+contract CreditBorrower is Ownable, ICreditBorrower {
     using SafeERC20 for IERC20;
 
-    address public admin;
-    ICreditOfficer public creditOfficer;
+    IERC20 public immutable token;
+    ICreditOfficer public immutable creditOfficer;
 
-    IERC20 internal constant dai = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    constructor(
+        address _admin,
+        IERC20 _token,
+        ICreditOfficer _creditOfficer
+    ) {
+        require(
+            address(_token) == _creditOfficer.borrowToken(),
+            "wrong borrow token"
+        );
+        token = _token;
+        creditOfficer = _creditOfficer;
+        token.approve(address(_creditOfficer), type(uint256).max);
 
-    constructor(address _admin, address _creditOfficer) {
-        require(address(dai) == ICreditOfficer(_creditOfficer).token(), "wrong borrowed token");
-        admin = _admin;
-        creditOfficer = ICreditOfficer(_creditOfficer);
-        dai.approve(_creditOfficer, type(uint256).max);
-    }
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin);
-        _;
+        transferOwnership(_admin);
     }
 
     modifier onlyCreditOfficer() {
-        require(msg.sender == address(creditOfficer));
+        require(msg.sender == address(creditOfficer), "!creditOfficer");
         _;
     }
 
@@ -37,7 +41,7 @@ contract CreditBorrower is ICreditBorrower {
      * @dev Since Iron Bank is the senior debt, borrower should implement this function to allow credit officer to pull the asset prior.
      */
     function askForRepay(uint256 amount) external onlyCreditOfficer {
-        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 daiBalance = token.balanceOf(address(this));
         if (amount > daiBalance) {
             _unwind(amount - daiBalance);
         }
@@ -45,22 +49,22 @@ contract CreditBorrower is ICreditBorrower {
     }
 
     function totalBalance() external view returns (uint256) {
-        return IERC20(dai).balanceOf(address(this)) + balanceInWork();
+        return IERC20(token).balanceOf(address(this)) + balanceInWork();
     }
 
     function freeBalance() external view returns (uint256) {
-        return IERC20(dai).balanceOf(address(this));
+        return IERC20(token).balanceOf(address(this));
     }
 
-    function borrow(uint256 amount) external onlyAdmin {
+    function borrow(uint256 amount) external onlyOwner {
         creditOfficer.borrow(amount);
     }
 
-    function repay(uint256 amount) external onlyAdmin {
+    function repay(uint256 amount) external onlyOwner {
         creditOfficer.repay(amount);
     }
 
-    function work() external onlyAdmin {
+    function work() external onlyOwner {
         // TODO: put your business logic here.
     }
 
@@ -70,6 +74,6 @@ contract CreditBorrower is ICreditBorrower {
     }
 
     function _unwind(uint256 amount) internal {
-        // TODO: unwind your borrowed position for repay.
+        // TODO: unwind your borrow position to repay.
     }
 }
