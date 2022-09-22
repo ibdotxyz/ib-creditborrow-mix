@@ -32,7 +32,7 @@ export ETHERSCAN_TOKEN=YourApiToken
 4. Download the mix.
 
 ```bash
-brownie bake ib-creditloan
+git clone git@github.com:ibdotxyz/ib-creditloan-mix.git
 ```
 
 ## Basic Use
