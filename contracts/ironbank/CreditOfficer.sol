@@ -56,8 +56,8 @@ contract CreditOfficer is Ownable, Pausable, ReentrancyGuard, ICreditOfficer {
         nonReentrant
         whenNotPaused
     {
-        ctoken.borrow(amount);
-        underlyingToken.transfer(address(borrower), amount);
+        require(ctoken.borrow(amount) == 0, "borrow failed");
+        underlyingToken.safeTransfer(address(borrower), amount);
         require(
             borrower.totalBalance() >=
                 ctoken.borrowBalanceStored(address(this)),
@@ -76,12 +76,12 @@ contract CreditOfficer is Ownable, Pausable, ReentrancyGuard, ICreditOfficer {
         } else {
             repayAmount = amount;
         }
-        underlyingToken.transferFrom(
+        underlyingToken.safeTransferFrom(
             address(borrower),
             address(this),
             repayAmount
         );
-        ctoken.repayBorrow(amount);
+        require(ctoken.repayBorrow(repayAmount) == 0, "repay failed");
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
