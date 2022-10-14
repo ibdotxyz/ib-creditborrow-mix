@@ -104,8 +104,6 @@ To run the tests:
 brownie test
 ```
 
-The example tests provided in this mix start by deploying and approving your [`CreditBorrower.sol`](contracts/CreditBorrower.sol) contract. This ensures that the loan executes succesfully without any custom logic. Once you have built your own logic, you should edit [`tests/creditloan.py`](tests/test_creditloan.py).
-
 See the [Brownie documentation](https://eth-brownie.readthedocs.io/en/stable/tests-pytest-intro.html) for more detailed information on testing your project.
 
 ## Debugging Failed Transactions
